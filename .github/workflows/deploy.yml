@@ -34,10 +34,10 @@ jobs:
           username: ubuntu
           key: ${{ secrets.ORACLE_SSH_KEY }}
           source: "build/libs/*.jar"
-          target: "/home/ubuntu/app"
+          target: "/home/ubuntu/app/releases"
           strip_components: 2
 
-      - name: Execute Server
+      - name: Install/Restart systemd service
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: 158.180.68.211
@@ -45,13 +45,45 @@ jobs:
           key: ${{ secrets.ORACLE_SSH_KEY }}
           script: |
             set -e
-            mkdir -p /home/ubuntu/app
+            APP_DIR="/home/ubuntu/app"
+            RELEASES_DIR="${APP_DIR}/releases"
+            CURRENT_JAR="${APP_DIR}/app.jar"
+            SERVICE_NAME="nurse-schedule"
 
-            # 최신 jar를 찾아 실행 (strip_components 사용으로 /home/ubuntu/app/*.jar 형태)
-            JAR_PATH="$(ls -t /home/ubuntu/app/*.jar | head -n 1)"
-            echo "Running: ${JAR_PATH}"
+            mkdir -p "${RELEASES_DIR}"
 
-            # 8080 포트 점유 프로세스 종료 (sudo 비밀번호 프롬프트 방지)
-            sudo -n fuser -k 8080/tcp || true
+            # 업로드된 jar 중 최신 것을 고정 이름(app.jar)으로 교체
+            LATEST_JAR="$(ls -t ${RELEASES_DIR}/*.jar | head -n 1)"
+            echo "Latest jar: ${LATEST_JAR}"
+            cp "${LATEST_JAR}" "${CURRENT_JAR}"
 
-            nohup java -jar "${JAR_PATH}" > /home/ubuntu/app/log.txt 2>&1 &
+            # systemd 유닛 파일 설치 (없으면 생성)
+            if [ ! -f "/etc/systemd/system/${SERVICE_NAME}.service" ]; then
+              sudo tee "/etc/systemd/system/${SERVICE_NAME}.service" >/dev/null <<'UNIT'
+            [Unit]
+            Description=Nurse Schedule Server
+            After=network.target
+
+            [Service]
+            Type=simple
+            User=ubuntu
+            WorkingDirectory=/home/ubuntu/app
+            ExecStart=/usr/bin/java -jar /home/ubuntu/app/app.jar
+            Restart=always
+            RestartSec=5
+            SuccessExitStatus=143
+
+            # 필요하면 여기에 환경변수를 추가하세요.
+            # Environment=SPRING_PROFILES_ACTIVE=prod
+
+            [Install]
+            WantedBy=multi-user.target
+            UNIT
+            fi
+
+            sudo systemctl daemon-reload
+            sudo systemctl enable "${SERVICE_NAME}"
+            sudo systemctl restart "${SERVICE_NAME}"
+
+            # 최근 로그 일부 출력(디버깅용)
+            sudo journalctl -u "${SERVICE_NAME}" -n 80 --no-pager || true
