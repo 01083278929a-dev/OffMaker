@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.nurse.schedule.mapper.auth.AuthMapper">
+
+    <insert id="InsertAuthHistory" parameterType="com.nurse.schedule.mapper.auth.AuthHistoryRow"
+            useGeneratedKeys="true" keyProperty="AUTH_SEQ">
+        INSERT INTO TB_AUTH_HISTORY
+        (USER_NM, PHONE_NUM, AUTH_CODE, TX_ID, AUTH_STATUS)
+        VALUES
+        (#{USER_NM}, #{PHONE_NUM}, #{AUTH_CODE}, #{TX_ID}, #{AUTH_STATUS})
+    </insert>
+
+    <select id="SelectAuthHistoryBySeq" resultType="com.nurse.schedule.mapper.auth.AuthHistoryRow">
+        SELECT
+            AUTH_SEQ,
+            USER_NM,
+            PHONE_NUM,
+            AUTH_CODE,
+            TX_ID,
+            AUTH_STATUS
+        FROM TB_AUTH_HISTORY
+        WHERE AUTH_SEQ = #{AUTH_SEQ}
+    </select>
+
+    <select id="SelectLatestSuccessAuthHistory" resultType="com.nurse.schedule.mapper.auth.AuthHistoryRow">
+        SELECT
+            AUTH_SEQ,
+            USER_NM,
+            PHONE_NUM,
+            AUTH_CODE,
+            TX_ID,
+            AUTH_STATUS
+        FROM TB_AUTH_HISTORY
+        WHERE USER_NM = #{USER_NM}
+          AND PHONE_NUM = #{PHONE_NUM}
+          AND AUTH_STATUS = '1'
+        ORDER BY AUTH_SEQ DESC
+        LIMIT 1
+    </select>
+
+    <insert id="InsertUserInfo" parameterType="com.nurse.schedule.mapper.auth.UserInfoRow"
+            useGeneratedKeys="true" keyProperty="USER_SEQ">
+        INSERT INTO TB_USER_INFO
+        (USER_NM, PHONE_NUM, USER_CI, USER_DI, BIRTH_DATE, GENDER)
+        VALUES
+        (#{USER_NM}, #{PHONE_NUM}, #{USER_CI}, #{USER_DI}, #{BIRTH_DATE}, #{GENDER})
+    </insert>
+
+    <insert id="InsertUserAccount" parameterType="com.nurse.schedule.mapper.auth.UserAccountRow"
+            useGeneratedKeys="true" keyProperty="ACC_SEQ">
+        INSERT INTO TB_USER_ACCOUNT
+        (USER_SEQ, LOGIN_ID, LOGIN_PW)
+        VALUES
+        (#{USER_SEQ}, #{LOGIN_ID}, #{LOGIN_PW})
+    </insert>
+
+    <insert id="InsertUserTermsAgree" parameterType="com.nurse.schedule.mapper.auth.UserTermsAgreeRow"
+            useGeneratedKeys="true" keyProperty="AGREE_SEQ">
+        INSERT INTO TB_USER_TERMS_AGREE
+        (USER_SEQ, SERVICE_TERMS_YN, PRIVACY_POLICY_YN, MARKETING_RECV_YN)
+        VALUES
+        (#{USER_SEQ}, #{SERVICE_TERMS_YN}, #{PRIVACY_POLICY_YN}, #{MARKETING_RECV_YN})
+    </insert>
+
+    <insert id="InsertVacationMgmt" parameterType="com.nurse.schedule.mapper.auth.VacationMgmtRow"
+            useGeneratedKeys="true" keyProperty="VAC_SEQ">
+        INSERT INTO TB_SET_VACATION_MGMT
+        (USER_SEQ, BASE_YEAR, TOTAL_DAYS, USED_DAYS, REMAIN_DAYS)
+        VALUES
+        (#{USER_SEQ}, #{BASE_YEAR}, #{TOTAL_DAYS}, #{USED_DAYS}, #{REMAIN_DAYS})
+    </insert>
+
+    <insert id="InsertDutyTypes">
+        INSERT INTO TB_SET_DUTY_TYPE
+        (USER_SEQ, DUTY_NM, START_TIME, END_TIME, COLOR_CODE, DUTY_CATEGORY, OFF_DEDUCT_YN, USE_YN)
+        VALUES
+        <foreach collection="list" item="row" separator=",">
+            (#{row.USER_SEQ}, #{row.DUTY_NM}, #{row.START_TIME}, #{row.END_TIME}, #{row.COLOR_CODE},
+             #{row.DUTY_CATEGORY}, #{row.OFF_DEDUCT_YN}, #{row.USE_YN})
+        </foreach>
+    </insert>
+
+</mapper>
+
