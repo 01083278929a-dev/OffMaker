@@ -1,0 +1,57 @@
+name: Java CI with Gradle and Deploy
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      # NOTE: 현재 레포에 리눅스용 ./gradlew 가 없어서, Actions에서 Gradle을 설치해 gradle 명령으로 빌드합니다.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Build with Gradle (skip tests)
+        run: gradle build -x test
+
+      - name: Upload JAR to Oracle Cloud
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 158.180.68.211
+          username: ubuntu
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          source: "build/libs/*.jar"
+          target: "/home/ubuntu/app"
+          strip_components: 2
+
+      - name: Execute Server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: 158.180.68.211
+          username: ubuntu
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script: |
+            set -e
+            mkdir -p /home/ubuntu/app
+
+            # 최신 jar를 찾아 실행 (strip_components 사용으로 /home/ubuntu/app/*.jar 형태)
+            JAR_PATH="$(ls -t /home/ubuntu/app/*.jar | head -n 1)"
+            echo "Running: ${JAR_PATH}"
+
+            # 8080 포트 점유 프로세스 종료 (sudo 비밀번호 프롬프트 방지)
+            sudo -n fuser -k 8080/tcp || true
+
+            nohup java -jar "${JAR_PATH}" > /home/ubuntu/app/log.txt 2>&1 &
